@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Echoes of Fall</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+
+<div id="fileWarning" style="display:none;position:fixed;top:0;left:0;width:100%;background:#FF4444;color:#fff;text-align:center;padding:8px;z-index:9999;font-family:monospace;font-size:13px;">
+  ⚠️ Run via start.bat → http://localhost:8080 — do not open index.html directly
+</div>
+
+<video id="menuVideo" autoplay muted loop playsinline
+  style="position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-2;pointer-events:none;display:block;"
+  onerror="console.warn('Menu video not found — add floating-city-dreams.1920x1080.mp4 to assets/')">
+  <source src="assets/floating-city-dreams.1920x1080.mp4" type="video/mp4">
+</video>
+
+<video id="bgVideo" autoplay muted loop playsinline
+  style="position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:-2;pointer-events:none;display:none;"
+  onerror="console.warn('Game video not found — add pixel-cityscape.1920x1080.mp4 to assets/')">
+  <source src="assets/pixel-cityscape.1920x1080.mp4" type="video/mp4">
+</video>
+
+<audio id="menuAudio" loop src="assets/music.mp3"></audio>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+  if (location.protocol === 'file:') {
+    document.getElementById('fileWarning').style.display = 'block';
+  }
+</script>
+
+<!-- load order matters — do not change this -->
+<script src="js/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/replay.js"></script>
+<script src="js/gamification.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>

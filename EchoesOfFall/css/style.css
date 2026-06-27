@@ -1,0 +1,51 @@
+/* style.css
+   Echoes of Fall — 
+   Built in Nepal */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Press Start 2P', monospace;
+}
+
+#gameCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  background: transparent !important;
+  display: block;
+}
+
+#menuVideo,
+#bgVideo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -2;
+  pointer-events: none;
+}
+
+#fileWarning {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #FF4444;
+  color: #fff;
+  text-align: center;
+  padding: 8px;
+  z-index: 9999;
+  font-family: monospace;
+  font-size: 13px;
+}
