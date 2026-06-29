@@ -33,8 +33,6 @@ const NPCS = Array.from({ length: 10 }, (_, i) => ({
   bubbleTimer: 0,
 }));
 
-// ── LIGHT RAYS ───────────────────────────────────────────────
-
 function drawLightRays(W, H) {
   ctx.save();
   ctx.globalAlpha = 0.035;
@@ -53,10 +51,8 @@ function drawLightRays(W, H) {
     ctx.restore();
   }
   ctx.globalAlpha = 1.0;
-  ctx.restore(); // critical — was missing before
+  ctx.restore();
 }
-
-// ── NPC CROWD ────────────────────────────────────────────────
 
 function updateNPCReactions(heightM, justDied) {
   NPCS.forEach((npc, i) => {
@@ -106,8 +102,6 @@ function drawNPCCrowd() {
   });
 }
 
-// ── TRAIL ────────────────────────────────────────────────────
-
 function updateTrail(px, py, speed) {
   const trailType = lsGet('eof_trail', 'none');
   if (trailType === 'none' || Math.abs(speed) < 1) return;
@@ -141,8 +135,6 @@ function drawTrail() {
   });
   ctx.globalAlpha = 1;
 }
-
-// ── CHECKPOINT FLAGS ─────────────────────────────────────────
 
 function drawCheckpointFlag(x, y, label, reached) {
   const screenY = y - cameraY;
@@ -182,8 +174,6 @@ function drawCheckpointFlag(x, y, label, reached) {
   ctx.fillText(label, x + 34, screenY - 32);
 }
 
-// ── PLAYER DRAWING ───────────────────────────────────────────
-
 function drawPlayerPose(c, skin, pose) {
   const skinColor = '#D4956A';
   const gi = skin.body;
@@ -221,7 +211,6 @@ function drawPlayerPose(c, skin, pose) {
     c.beginPath(); c.moveTo(-3, 8); c.lineTo(-6, 18); c.stroke();
     c.beginPath(); c.moveTo(3, 8); c.lineTo(6, 18); c.stroke();
   } else {
-    // idle / land
     c.beginPath(); c.moveTo(-5, -4); c.lineTo(-10, 0); c.stroke();
     c.beginPath(); c.moveTo(5, -4); c.lineTo(10, 0); c.stroke();
     c.beginPath(); c.moveTo(-3, 8); c.lineTo(-5, 14); c.stroke();
@@ -229,13 +218,10 @@ function drawPlayerPose(c, skin, pose) {
   }
 }
 
-// ── WEATHER ──────────────────────────────────────────────────
-
 function drawWeatherEffects() {
   const w = window._weather || WEATHERS[0];
 
   if (w.id === 'fog') {
-    // subtle edge mist only — NOT a black hole
     const fogGrad = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.78);
     fogGrad.addColorStop(0, 'rgba(200,210,220,0)');
     fogGrad.addColorStop(1, 'rgba(200,210,220,0.52)');
@@ -280,8 +266,6 @@ function drawWeatherEffects() {
     ctx.globalAlpha = 1;
   }
 }
-
-// ── RENDERER INIT ────────────────────────────────────────────
 
 function initRenderer() {
   canvas = document.getElementById('gameCanvas');
@@ -368,8 +352,6 @@ function initCityscapeFallback() {
   });
 }
 
-// ── HELPERS ──────────────────────────────────────────────────
-
 function triggerShake() {
   shake.active = true;
   shake.start = Date.now();
@@ -393,8 +375,6 @@ function applyShake() {
   if (t <= 0) { shake.active = false; return; }
   ctx.translate((Math.random() - 0.5) * shake.amount * t, (Math.random() - 0.5) * shake.amount * t);
 }
-
-// ── PARALLAX BACKGROUND ──────────────────────────────────────
 
 function drawParallax(camY) {
   const rates = [0.05, 0.1, 0.2, 0.35, 0.5];
@@ -483,8 +463,6 @@ function drawStreetScene(baseY) {
   ctx.fillRect(0, baseY + 10, W + 100, 30);
 }
 
-// ── PLATFORMS ────────────────────────────────────────────────
-
 function drawBoulderPlatform(body) {
   if (body.broken) return;
   const verts = body.vertices;
@@ -520,7 +498,6 @@ function drawBoulderPlatform(body) {
     ctx.fillRect(cx - body.platformW / 2, cy - body.platformH / 2, body.platformW, body.platformH);
   }
 
-  // spikes on platform
   const p = body.platformDef;
   if (p && p.spikes) {
     p.spikes.forEach(sp => {
@@ -576,8 +553,6 @@ function drawPortal(body) {
   ctx.shadowBlur = 0;
 }
 
-// ── PLAYER ───────────────────────────────────────────────────
-
 function drawPlayerCharacter() {
   if (!player) return;
   const px = player.position.x;
@@ -600,8 +575,6 @@ function drawPlayerCharacter() {
   drawPlayerPose(ctx, skin, pose);
   ctx.restore();
 }
-
-// ── COINS & SPIKES ───────────────────────────────────────────
 
 function drawCoin(coin) {
   if (coin.collected) return;
@@ -636,8 +609,6 @@ function drawSpike(spike) {
   ctx.restore();
 }
 
-// ── GHOST ────────────────────────────────────────────────────
-
 function drawGhostReplay() {
   if (!ghostPlayback.length || !gameStarted) return;
   ghostIdx = Math.min(ghostIdx + 1, ghostPlayback.length - 1);
@@ -651,8 +622,6 @@ function drawGhostReplay() {
   ctx.fillRect(-5, -8, 10, 16);
   ctx.restore();
 }
-
-// ── PARTICLES & FLOATING TEXT ────────────────────────────────
 
 function drawParticlesWorld() {
   particles = particles.filter(p => p.alpha > 0);
@@ -678,8 +647,6 @@ function drawFloatingTextsScreen() {
   ctx.globalAlpha = 1;
 }
 
-// ── DEATH EFFECTS ────────────────────────────────────────────
-
 function drawDeathEffects() {
   if (deathFlash > 0) {
     ctx.fillStyle = 'rgba(255,0,0,' + (deathFlash * 0.4) + ')';
@@ -690,7 +657,7 @@ function drawDeathEffects() {
 
 function drawQuoteOverlay() {
   if (!quoteText || Date.now() > quoteUntil) return;
-  const qy = H * 0.50; // center screen — never overlaps HUD
+  const qy = H * 0.50; 
   ctx.font = '10px "Press Start 2P", monospace';
   const rawW = ctx.measureText('💀 ' + quoteText).width;
   const qw = Math.min(W * 0.82, rawW + 36);
@@ -707,8 +674,6 @@ function drawQuoteOverlay() {
     ctx.fillText(currentTaunt, W / 2, qy + 26);
   }
 }
-
-// ── HUD ──────────────────────────────────────────────────────
 
 function drawPill(x, y, text, color) {
   ctx.save();
@@ -745,18 +710,15 @@ function drawHUD(ngPlusActive, prestigeLevel, name) {
   const heightM = heightInMeters(player.position.y);
   const xpInfo = xpToNextLevel(xp);
 
-  // top accent line
   ctx.fillStyle = '#c084fc';
   ctx.fillRect(0, 0, W, 2);
 
-  // ROW 1 — Y = 24
   drawPill(88,     24, '▲ ' + heightM + 'm',  '#FFB700');
-  drawPill(W / 2,  24, formatTime(elapsed),    '#ffffff');
+  drawPill(W / 2,  24, '🪙 ' + sessionCoins,   '#FFD700'); 
   drawPill(W - 88, 24, '💀 ' + deaths,          '#FF4444');
 
-  // ROW 2 — Y = 52 (28px below — no overlap)
   drawPill(88,     52, '⭐ LV.' + getLevel(xp), '#a78bfa');
-  drawPill(W - 88, 52, '🪙 ' + sessionCoins,   '#FFD700');
+  drawPill(W - 88, 52, formatTime(elapsed),     '#ffffff'); 
   if (comboMultiplier > 1) drawPill(W / 2, 52, '🔥x' + comboMultiplier, '#FF8C00');
 
   if (ngPlusActive) {
@@ -775,7 +737,6 @@ function drawHUD(ngPlusActive, prestigeLevel, name) {
     ctx.globalAlpha = 1;
   }
 
-  // bottom left — player name
   if (name) {
     ctx.font = '8px "Press Start 2P", monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
@@ -783,19 +744,16 @@ function drawHUD(ngPlusActive, prestigeLevel, name) {
     ctx.fillText('👤 ' + name, 14, H - 20);
   }
 
-  // bottom right — weather
   const weatherLabel = (window._weather || WEATHERS[0]).label;
   ctx.font = '8px "Press Start 2P", monospace';
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
   ctx.fillText(weatherLabel, W - 14, H - 20);
 
-  // controls hint — very bottom right
   ctx.font = '7px "Press Start 2P"';
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.fillText('[M] Mute  [P] Pause', W - 14, H - 8);
 
-  // feedback overlays
   if (nearMissFlash > 0) {
     nearMissFlash -= 0.02;
     ctx.globalAlpha = Math.min(1, nearMissFlash);
@@ -857,7 +815,6 @@ function drawHUD(ngPlusActive, prestigeLevel, name) {
     ctx.globalAlpha = 1;
   }
 
-  // XP bar — very bottom, 4px tall
   const barW2 = W * 0.48;
   const barX2 = (W - barW2) / 2;
   ctx.fillStyle = 'rgba(255,255,255,0.07)';
@@ -867,8 +824,6 @@ function drawHUD(ngPlusActive, prestigeLevel, name) {
 
   drawProgressBar();
 }
-
-// ── MENU ─────────────────────────────────────────────────────
 
 function drawCityscapeFallback() {
   ctx.fillStyle = '#1a0f05';
@@ -899,13 +854,11 @@ function drawCityscapeFallback() {
 
 function drawMenuScreen(W, H, taglineIndex, streak) {
   ctx.clearRect(0, 0, W, H);
-  // semi-transparent overlay so video behind shows through
   ctx.fillStyle = 'rgba(0,0,0,0.50)';
   ctx.fillRect(0, 0, W, H);
 
   drawLightRays(W, H);
 
-  // amber floating particles
   menuParticles.forEach(p => {
     p.x += p.vx; p.y += p.vy;
     if (p.y < -5) p.y = H + 5;
@@ -914,7 +867,6 @@ function drawMenuScreen(W, H, taglineIndex, streak) {
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
   });
 
-  // white dust particles
   dust.forEach(d => {
     d.x += d.vx; d.y += d.vy;
     if (d.y < -5) { d.y = H + 5; d.x = Math.random() * W; }
@@ -924,7 +876,6 @@ function drawMenuScreen(W, H, taglineIndex, streak) {
   });
   ctx.globalAlpha = 1;
 
-  // title — Y 15%
   const grad = ctx.createLinearGradient(W / 2, H * 0.12, W / 2, H * 0.20);
   grad.addColorStop(0, '#FFD700');
   grad.addColorStop(1, '#FF6B00');
@@ -934,17 +885,14 @@ function drawMenuScreen(W, H, taglineIndex, streak) {
   ctx.fillText('ECHOES OF FALL', W / 2, H * 0.15);
   ctx.shadowBlur = 0;
 
-  // subtitle — Y 22%
   ctx.font = 'italic ' + Math.min(13, W * 0.016) + "px 'Cinzel', serif";
   ctx.fillStyle = 'rgba(255,220,150,0.7)';
   ctx.fillText('Climb. Fall. Repeat.', W / 2, H * 0.22);
 
-  // tagline — Y 28%
   ctx.font = '8px "Press Start 2P", monospace';
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.fillText(TAGLINES[taglineIndex], W / 2, H * 0.28);
 
-  // streak — bottom right only, NOT center screen
   if (streak && streak.count > 1) {
     ctx.font = '8px "Press Start 2P"';
     ctx.fillStyle = '#FF8C00';
@@ -952,13 +900,11 @@ function drawMenuScreen(W, H, taglineIndex, streak) {
     ctx.fillText('🔥 Day ' + streak.count + ' Streak!', W - 14, H * 0.954);
   }
 
-  // bottom left — eSewa only, no buymeacoffee
   ctx.textAlign = 'left';
   ctx.font = '7px "Press Start 2P"';
   ctx.fillStyle = 'rgba(255,180,50,0.65)';
   ctx.fillText('Support: eSewa 9817959961', 14, H - 10);
 
-  // bottom right — level + coins
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(255,255,255,0.38)';
   ctx.fillText('⭐ LV.' + getLevel(xp) + '  🪙 ' + totalCoins, W - 14, H - 10);
@@ -1000,8 +946,6 @@ function drawMenuButtons(mouseX, mouseY) {
 
   return rects;
 }
-
-// ── OTHER SCREENS ────────────────────────────────────────────
 
 function drawHowToScreen(mouseX, mouseY) {
   ctx.fillStyle = 'rgba(0,0,0,0.88)';
@@ -1141,7 +1085,6 @@ function drawVictoryOverlay(mouseX, mouseY, victoryButtons) {
     'Level: ' + getLevel(xp),
   ].forEach((line, i) => ctx.fillText(line, W / 2, H * 0.23 + i * 26));
 
-  // no challenge code shown — removed
   drawDonationBlock(W, H, H * 0.87);
 
   const rects = [];
@@ -1199,7 +1142,6 @@ function drawPanelScreen(title, lines, mouseX, mouseY, useFallback) {
 
 function drawGameWorld(ngPlusActive) {
   ctx.clearRect(0, 0, W, H);
-  // transparent overlay — video shows through
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.fillRect(0, 0, W, H);
 

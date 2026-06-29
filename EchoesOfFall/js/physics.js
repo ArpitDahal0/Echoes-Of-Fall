@@ -33,11 +33,7 @@ let deathHandling = false;
 let ghostIdx = 0;
 let victoryTriggered = false;
 
-function initPhysics() {
-  // engine created in startGamePhysics — nothing to do here
-}
-
-// ── GROUNDED CHECK ────────────────────────────────────────────
+function initPhysics() {}
 
 function isGrounded() {
   if (!player || !engine || !world) return false;
@@ -50,8 +46,6 @@ function isGrounded() {
   return hits.some(h => h.body !== player && !h.body.isSensor);
 }
 
-// ── PLATFORM BODY CREATION ────────────────────────────────────
-
 function createPlatformBody(p) {
   const type = defToPlatformType(p);
   const body = Bodies.rectangle(p.x, p.y, p.w, p.h, {
@@ -59,7 +53,6 @@ function createPlatformBody(p) {
     friction: 0.8,
     restitution: 0,
     label: type,
-    // portal and victory are sensors — player passes through them
     isSensor: type === 'portal' || type === 'victory',
   });
 
@@ -81,10 +74,7 @@ function createPlatformBody(p) {
   return body;
 }
 
-// ── GAME START / STOP ─────────────────────────────────────────
-
 function startGamePhysics(W, ngPlus) {
-  // clean up old engine if exists
   if (engine) {
     World.clear(world);
     Engine.clear(engine);
@@ -96,9 +86,7 @@ function startGamePhysics(W, ngPlus) {
   runner = Runner.create();
   world = engine.world;
 
-  // random weather each run
   window._weather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
-
   const data = buildLevelData(W, ngPlus);
   levelCoins = data.coins;
   levelSpikes = data.spikes;
@@ -113,21 +101,18 @@ function startGamePhysics(W, ngPlus) {
     frictionAir: CONFIG.frictionAir,
     restitution: 0,
     label: 'player',
-    // prevent player from rotating — looks weird
     inertia: Infinity,
     inverseInertia: 0,
   });
 
   Composite.add(world, [player, ...platformBodies]);
 
-  // apply weather friction to all platforms
   platformBodies.forEach(b => {
     if (b.platformType && b.platformType !== 'portal' && b.platformType !== 'victory') {
       b.friction = 0.8 * window._weather.frictionMod;
     }
   });
 
-  // reset all state
   gameStarted = false;
   timerStart = 0;
   elapsed = 0;
@@ -159,6 +144,10 @@ function stopGamePhysics() {
     World.clear(world);
     Engine.clear(engine);
   }
+  platformBodies.forEach(p => {
+    if (p.breakTimer) clearTimeout(p.breakTimer);
+    if (p.respawnTimer) clearTimeout(p.respawnTimer);
+  });
   engine = null;
   runner = null;
   player = null;
@@ -166,8 +155,6 @@ function stopGamePhysics() {
   levelCoins = [];
   levelSpikes = [];
 }
-
-// ── JUMP ──────────────────────────────────────────────────────
 
 function doJump() {
   if (!canJump) return;
@@ -182,23 +169,19 @@ function doJump() {
   jumpPressedTime = 0;
 }
 
-// ── POSE ──────────────────────────────────────────────────────
-
 function updateCurrentPose() {
   if (!player) return;
   const vx = player.velocity.x;
   const vy = player.velocity.y;
   const now = Date.now();
 
-  if (deathSpinActive)                          currentPose = 'death_spin';
-  else if (now - landTime < 150 && wasGrounded) currentPose = 'land';
-  else if (vy < -3)                             currentPose = 'jump_up';
-  else if (vy > 4)                              currentPose = 'fall_down';
-  else if (Math.abs(vx) > 0.5 && wasGrounded)  currentPose = 'run';
-  else                                          currentPose = 'idle';
+  if (deathSpinActive)                              currentPose = 'death_spin';
+  else if (now - landTime < 150 && wasGrounded)     currentPose = 'land';
+  else if (vy < -3)                                 currentPose = 'jump_up';
+  else if (vy > 4)                                  currentPose = 'fall_down';
+  else if (Math.abs(vx) > 0.5 && wasGrounded)       currentPose = 'run';
+  else                                              currentPose = 'idle';
 }
-
-// ── BEFORE UPDATE (main game tick) ───────────────────────────
 
 function onBeforeUpdate() {
   if (typeof screen !== 'undefined' && screen !== 'game') return;
@@ -207,7 +190,6 @@ function onBeforeUpdate() {
   const now = Date.now();
   const grounded = isGrounded();
 
-  // landing detection
   if (grounded) {
     lastGroundedTime = now;
     canJump = true;
@@ -215,18 +197,15 @@ function onBeforeUpdate() {
       landTime = now;
       playLandSound();
       spawnDust(player.position.x, player.position.y + 14, 8, 'rgba(200,170,100,0.6)');
-      // jump buffer — if jump was pressed just before landing, jump immediately
       if (now - jumpPressedTime < CONFIG.jumpBuffer) doJump();
     }
   }
   wasGrounded = grounded;
 
-  // wind weather force
   if (window._weather && window._weather.windX !== 0) {
     Body.applyForce(player, player.position, { x: window._weather.windX, y: 0 });
   }
 
-  // horizontal movement
   const force = grounded ? CONFIG.groundForce : CONFIG.airForce;
 
   if (keys['a'] || keys['A'] || keys['ArrowLeft']) {
@@ -239,7 +218,7 @@ function onBeforeUpdate() {
     if (player.velocity.x < CONFIG.maxSpeed)
       Body.applyForce(player, player.position, { x: force, y: 0 });
   }
-  // friction when no key pressed
+  
   if (!keys['a'] && !keys['A'] && !keys['d'] && !keys['D'] &&
       !keys['ArrowLeft'] && !keys['ArrowRight']) {
     Body.setVelocity(player, {
@@ -248,17 +227,16 @@ function onBeforeUpdate() {
     });
   }
 
-  // coin collection
+  // Optimized distance calculation (squared instead of sqrt)
   levelCoins.forEach(coin => {
     if (coin.collected) return;
     const dx = player.position.x - coin.x;
     const dy = player.position.y - coin.y;
-    if (Math.sqrt(dx * dx + dy * dy) < 22) {
+    if (dx * dx + dy * dy < 484) { 
       collectCoin(coin, player.position.x, player.position.y);
     }
   });
 
-  // standalone spike bodies (from levelSpikes array)
   levelSpikes.forEach(spike => {
     if (deathSpinActive || deathHandling || now <= punishCooldownUntil) return;
     const dx = Math.abs(player.position.x - spike.x);
@@ -268,7 +246,6 @@ function onBeforeUpdate() {
     }
   });
 
-  // spikes embedded on platforms
   platformBodies.forEach(p => {
     if (deathSpinActive || deathHandling || now <= punishCooldownUntil) return;
     const def = p.platformDef;
@@ -279,31 +256,25 @@ function onBeforeUpdate() {
         const sy = p.position.y - def.h / 2 - 9;
         const dx = player.position.x - sx;
         const dy = player.position.y - sy;
-        if (Math.sqrt(dx * dx + dy * dy) < 18) {
+        if (dx * dx + dy * dy < 324) { 
           triggerFallPunishment();
         }
       }
     });
   });
 
-  // execute buffered jump
   if (pendingJump) doJump();
-
-  // track highest point reached this run
   if (player.position.y < peakY) peakY = player.position.y;
 
-  // gamification per-frame update
   updateGamificationDuringPlay(
     player,
     typeof playerName !== 'undefined' ? playerName : '',
     canvas.width
   );
 
-  // npc reactions
   const heightM = heightInMeters(player.position.y);
   updateNPCReactions(heightM, false);
 
-  // fall punishment — fell too far below peak
   if (
     player.position.y > peakY + CONFIG.fallThreshold &&
     !deathSpinActive &&
@@ -313,7 +284,6 @@ function onBeforeUpdate() {
     triggerFallPunishment();
   }
 
-  // moving platforms
   platformBodies.forEach(p => {
     if (p.platformType !== 'moving' || p.broken) return;
     const t = now / 1000;
@@ -322,7 +292,6 @@ function onBeforeUpdate() {
     else                    Body.setPosition(p, { x: p.origX,          y: p.origY + offset });
   });
 
-  // start timer on first movement
   if (!gameStarted && (Math.abs(player.velocity.x) > 0.3 || Math.abs(player.velocity.y) > 0.3)) {
     gameStarted = true;
     timerStart = Date.now();
@@ -336,8 +305,6 @@ function onBeforeUpdate() {
   updateTrail(player.position.x, player.position.y, speed);
 }
 
-// ── COLLISION ─────────────────────────────────────────────────
-
 function onCollisionStart(e) {
   e.pairs.forEach(pair => {
     const bodies = [pair.bodyA, pair.bodyB];
@@ -345,7 +312,6 @@ function onCollisionStart(e) {
     const other = bodies[0] === player ? bodies[1] : bodies[0];
     if (!other) return;
 
-    // near miss detection — landing close to platform edge
     if (other.platformW && !deathSpinActive && !deathHandling) {
       const edgeDist = Math.min(
         Math.abs(player.position.x - (other.position.x - other.platformW / 2)),
@@ -357,7 +323,6 @@ function onCollisionStart(e) {
       }
     }
 
-    // breakable platform — crumbles after 1.8s
     if (other.platformType === 'breakable' && !other.broken && !other.breakTimer) {
       other.breakTimer = setTimeout(() => {
         other.broken = true;
@@ -370,7 +335,6 @@ function onCollisionStart(e) {
       }, 1800);
     }
 
-    // spring pad — launches player high
     if (other.platformType === 'spring') {
       Body.setVelocity(player, {
         x: player.velocity.x,
@@ -379,7 +343,6 @@ function onCollisionStart(e) {
       playSpringSound();
     }
 
-    // speed pad — horizontal boost
     if (other.platformType === 'speed') {
       Body.setVelocity(player, {
         x: (facingRight ? 1 : -1) * 12,
@@ -388,14 +351,11 @@ function onCollisionStart(e) {
       playSpeedSound();
     }
 
-    // victory platform OR portal — trigger win
     if (other.platformType === 'victory' || other.platformType === 'portal') {
       triggerVictory();
     }
   });
 }
-
-// ── DEATH & VICTORY ───────────────────────────────────────────
 
 function triggerFallPunishment() {
   if (deathHandling) return;
@@ -405,7 +365,7 @@ function triggerFallPunishment() {
   deathSpinStart = Date.now();
   onDeath(typeof playerName !== 'undefined' ? playerName : '');
   onDeathCloseCall(player.position.y);
-  triggerDeath(); // defined in main.js
+  triggerDeath(); 
 }
 
 function triggerVictory() {
@@ -414,6 +374,15 @@ function triggerVictory() {
   playVictorySound();
   screen = 'victory';
   addXP(200, 'VICTORY!');
+  
+  // BANK THE COINS! Save session coins to global total upon winning
+  if (typeof sessionCoins !== 'undefined' && sessionCoins > 0) {
+    let currentSaved = lsGet('eof_coins', 0);
+    currentSaved += sessionCoins;
+    lsSet('eof_coins', currentSaved);
+    totalCoins = currentSaved; // Update global state for the UI
+  }
+
   saveToLeaderboard(
     typeof playerName !== 'undefined' ? playerName : 'UNKNOWN',
     heightInMeters(player.position.y),
@@ -422,8 +391,6 @@ function triggerVictory() {
   saveGhostIfBest(elapsed);
   if (runner) Runner.stop(runner);
 }
-
-// ── RESET / PAUSE / CAMERA ────────────────────────────────────
 
 function resetPlayerPos(x, y) {
   if (!player) return;

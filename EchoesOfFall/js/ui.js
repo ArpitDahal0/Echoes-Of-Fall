@@ -2,6 +2,45 @@
 // screens: hall of shame, map overview, skin shop, leaderboard, donation
 // - Arpit
 
+let _skinListenerAttached = false;
+
+function handleSkinClick(e) {
+  if (screen !== 'skins') return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const cols = 4;
+  const cardW = Math.floor((W - 60) / cols);
+  const cardH = 150;
+  const cardGap = 8;
+  const totalGridW = cols * cardW;
+  const gridStartX = (W - totalGridW) / 2;
+  const gridStartY = H * 0.13;
+
+  SKINS.forEach((skin, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cardX = gridStartX + col * cardW;
+    const cardY = gridStartY + row * (cardH + cardGap);
+
+    if (mx > cardX + 4 && mx < cardX + cardW - 4 && my > cardY && my < cardY + cardH) {
+      const unlocked = isSkinUnlocked(skin);
+      if (unlocked) {
+        currentSkin = skin;
+        lsSet('eof_skin', skin);
+      } else if (skin.unlock === 'coins') {
+        const bought = buySkinWithCoins(skin);
+        if (bought) {
+          spawnFloatingText('🎉 ' + skin.name + ' unlocked!', W / 2, H / 2, '#FFD700');
+        } else {
+          spawnFloatingText('Need ' + skin.cost + ' coins 🪙', W / 2, H / 2, '#FF4444');
+        }
+      }
+    }
+  });
+}
+
 function drawDonationBlock(W, H, y) {
   ctx.fillStyle = 'rgba(255,140,50,0.08)';
   ctx.beginPath();
@@ -16,7 +55,7 @@ function drawDonationBlock(W, H, y) {
   ctx.textAlign = 'center';
   ctx.fillText('This game took 300+ hours to build 🇳🇵', W / 2, y + 18);
 
-  drawButton(ctx, W / 2, y + 42, 220, 26, '📱 eSewa: 9817959961', '#FF8C00', () => {
+  drawButton(canvas, ctx, W / 2, y + 42, 220, 26, '📱 eSewa: 9817959961', '#FF8C00', () => {
     navigator.clipboard.writeText('eSewa: 9817959961 — Echoes of Fall').catch(() => {});
     spawnFloatingText('eSewa number copied!', W / 2, y, '#FF8C00');
   });
@@ -73,12 +112,12 @@ function drawHallOfShame(W, H) {
     worst.map((d, i) => '#' + (i + 1) + ' reached ' + d.height + 'm then died').join('\n') +
     '\n' + deaths + ' total deaths. Can you do worse?';
 
-  drawButton(ctx, W / 2, H * 0.86, 230, 34, '📋 COPY SHAME', '#FF4444', () => {
+  drawButton(canvas, ctx, W / 2, H * 0.86, 230, 34, '📋 COPY SHAME', '#FF4444', () => {
     navigator.clipboard.writeText(shareText).catch(() => {});
     spawnFloatingText('Copied! 💀', W / 2, H * 0.82, '#FF4444');
   });
 
-  drawButton(ctx, W / 2, H * 0.93, 150, 30, '← BACK', '#888', () => { screen = 'game'; });
+  drawButton(canvas, ctx, W / 2, H * 0.93, 150, 30, '← BACK', '#888', () => { changeScreen('game'); });
 }
 
 function drawMapOverview(W, H) {
@@ -163,7 +202,6 @@ function drawMapOverview(W, H) {
   ctx.fillStyle = '#4ade80';
   ctx.fillText('YOU ARE HERE', mapX + mapW / 2, spawnMapY + 14);
 
-  // legend
   const legend = [
     { color: '#c8a86b', label: 'Normal' },
     { color: '#a05030', label: 'Breakable' },
@@ -181,7 +219,7 @@ function drawMapOverview(W, H) {
     ctx.fillText(l.label, mapX + 15, ly + 5);
   });
 
-  drawButton(ctx, W / 2, H - 24, 205, 32, '▶ START CLIMBING', '#4ade80', () => {
+  drawButton(canvas, ctx, W / 2, H - 24, 205, 32, '▶ START CLIMBING', '#4ade80', () => {
     fadeToBlack(() => startGame(false));
   });
 }
@@ -195,7 +233,6 @@ function drawSkinsScreenUI(W, H) {
   ctx.textAlign = 'center';
   ctx.fillText('👤 CHOOSE YOUR FIGHTER', W / 2, H * 0.07);
 
-  // grid — 4 per row, 2 rows for 7 skins
   const cols = 4;
   const cardW = Math.floor((W - 60) / cols);
   const cardH = 150;
@@ -204,16 +241,20 @@ function drawSkinsScreenUI(W, H) {
   const gridStartX = (W - totalGridW) / 2;
   const gridStartY = H * 0.13;
 
+  if (!_skinListenerAttached) {
+    canvas.addEventListener('click', handleSkinClick);
+    _skinListenerAttached = true;
+  }
+
   SKINS.forEach((skin, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const cardX = gridStartX + col * cardW;
     const cardY = gridStartY + row * (cardH + cardGap);
-    const cardCX = cardX + cardW / 2; // center x of card
+    const cardCX = cardX + cardW / 2;
     const unlocked = isSkinUnlocked(skin);
     const selected = currentSkin && currentSkin.id === skin.id;
 
-    // card background
     ctx.fillStyle = selected ? 'rgba(192,132,252,0.22)' : 'rgba(10,5,20,0.82)';
     ctx.strokeStyle = selected ? '#e879f9' : unlocked ? '#444' : '#2a2a2a';
     ctx.lineWidth = selected ? 2 : 1;
@@ -222,7 +263,6 @@ function drawSkinsScreenUI(W, H) {
     ctx.fill();
     ctx.stroke();
 
-    // character or lock
     if (unlocked) {
       ctx.save();
       ctx.translate(cardCX, cardY + 48);
@@ -234,48 +274,22 @@ function drawSkinsScreenUI(W, H) {
       ctx.fillText('🔒', cardCX, cardY + 52);
     }
 
-    // skin name
     ctx.font = (selected ? 'bold ' : '') + '8px "Press Start 2P"';
     ctx.fillStyle = unlocked ? '#fff' : '#555';
     ctx.textAlign = 'center';
     ctx.fillText(skin.name, cardCX, cardY + 88);
 
-    // unlock condition — short text
     ctx.font = '7px "Press Start 2P"';
     ctx.fillStyle = skin.unlock === 'coins' ? '#FFD700' : '#777';
     ctx.fillText(skin.unlockDesc, cardCX, cardY + 104);
 
-    // buy button for coin skins
     if (skin.unlock === 'coins' && !unlocked) {
       ctx.font = '6px "Press Start 2P"';
       ctx.fillStyle = '#FFD700';
       ctx.fillText('🪙 click to buy', cardCX, cardY + 118);
     }
-
-    // click handler
-    canvas.addEventListener('click', function skinClick(e) {
-      if (screen !== 'skins') { canvas.removeEventListener('click', skinClick); return; }
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      if (mx > cardX + 4 && mx < cardX + cardW - 4 && my > cardY && my < cardY + cardH) {
-        if (unlocked) {
-          currentSkin = skin;
-          lsSet('eof_skin', skin);
-        } else if (skin.unlock === 'coins') {
-          const bought = buySkinWithCoins(skin);
-          if (bought) {
-            spawnFloatingText('🎉 ' + skin.name + ' unlocked!', W / 2, H / 2, '#FFD700');
-          } else {
-            spawnFloatingText('Need ' + skin.cost + ' coins 🪙', W / 2, H / 2, '#FF4444');
-          }
-        }
-        canvas.removeEventListener('click', skinClick);
-      }
-    });
   });
 
-  // trail selector
   const trailSectionY = gridStartY + 2 * (cardH + cardGap) + 16;
   ctx.font = '8px "Press Start 2P"';
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -298,18 +312,17 @@ function drawSkinsScreenUI(W, H) {
 
   trails.forEach((t, i) => {
     const sel = lsGet('eof_trail', 'none') === t.id;
-    drawButton(ctx, trailStartX + i * (trailBtnW + trailBtnGap), trailBtnY, trailBtnW, trailBtnH,
+    drawButton(canvas, ctx, trailStartX + i * (trailBtnW + trailBtnGap), trailBtnY, trailBtnW, trailBtnH,
       t.label, sel ? '#e879f9' : '#444', () => { lsSet('eof_trail', t.id); });
   });
 
-  // esewa support — no buymeacoffee
   ctx.font = '7px "Press Start 2P"';
   ctx.fillStyle = 'rgba(255,140,50,0.75)';
   ctx.textAlign = 'center';
   ctx.fillText('Support: eSewa 9817959961', W / 2, trailBtnY + 46);
 
-  drawButton(ctx, W / 2, H - 18, 130, 26, '← BACK', '#888', () => {
-    screen = 'menu';
+  drawButton(canvas, ctx, W / 2, H - 18, 130, 26, '← BACK', '#888', () => {
+    changeScreen('menu');
   });
 }
 
@@ -353,8 +366,7 @@ function drawLeaderboardScreen(W, H) {
     });
   }
 
-  // no friend code input — removed
-  drawButton(ctx, W / 2, H - 34, 140, 26, '← BACK', '#888', () => {
-    screen = 'menu';
+  drawButton(canvas, ctx, W / 2, H - 34, 140, 26, '← BACK', '#888', () => {
+    changeScreen('menu');
   });
 }

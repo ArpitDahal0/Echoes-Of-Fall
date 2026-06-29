@@ -73,12 +73,10 @@ function seededOffset(id, vi) {
 }
 
 // ── BUTTON SYSTEM ─────────────────────────────────────────────
-// Fixed: was adding new listener every frame — now uses a stable map
-// keyed by label+position so each button only ever has one listener
 
 const _btnListeners = new Map();
 
-function drawButton(ctx, cx, cy, w, h, label, color, onClick) {
+function drawButton(canvasEl, ctx, cx, cy, w, h, label, color, onClick) {
   const x = cx - w / 2;
   const y = cy - h / 2;
 
@@ -97,13 +95,13 @@ function drawButton(ctx, cx, cy, w, h, label, color, onClick) {
   ctx.fillText(label, cx, cy);
   ctx.textBaseline = 'alphabetic';
 
-  // register click — remove old one first so we never stack
+  // register click
   const key = label + '|' + Math.round(cx) + '|' + Math.round(cy);
   if (_btnListeners.has(key)) {
-    canvas.removeEventListener('click', _btnListeners.get(key));
+    canvasEl.removeEventListener('click', _btnListeners.get(key));
   }
   function handler(e) {
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasEl.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     if (mx > x && mx < x + w && my > y && my < y + h) {
@@ -111,12 +109,10 @@ function drawButton(ctx, cx, cy, w, h, label, color, onClick) {
     }
   }
   _btnListeners.set(key, handler);
-  canvas.addEventListener('click', handler);
+  canvasEl.addEventListener('click', handler);
 }
 
-// call this when leaving any screen that used drawButton
-// prevents stale handlers from firing on the next screen
-function clearButtonListeners() {
-  _btnListeners.forEach((fn) => canvas.removeEventListener('click', fn));
+function clearButtonListeners(canvasEl) {
+  _btnListeners.forEach((fn) => canvasEl.removeEventListener('click', fn));
   _btnListeners.clear();
 }

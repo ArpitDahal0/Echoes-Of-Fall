@@ -20,6 +20,10 @@ let fadeCallback = null;
 
 let victorySaved = false;
 
+// Replaces setTimeout for death warping
+let pendingRespawnTime = 0;
+let pendingRespawnHall = false;
+
 const VICTORY_BUTTONS = [
   { id: 'again',  label: 'PLAY AGAIN'    },
   { id: 'share',  label: '📋 COPY & SHARE' },
@@ -31,7 +35,10 @@ initRenderer();
 initPhysics();
 loadGhost();
 
-// ── VIDEO CONTROL ─────────────────────────────────────────────
+function changeScreen(newScreen) {
+  if (typeof clearButtonListeners === 'function') clearButtonListeners(canvas);
+  screen = newScreen;
+}
 
 function setGameVideo(show) {
   const mv = document.getElementById('menuVideo');
@@ -48,15 +55,11 @@ function setGameVideo(show) {
   }
 }
 
-// ── FADE TRANSITION ───────────────────────────────────────────
-
 function fadeToBlack(cb) {
   fadeTarget = 1;
   fadeAlpha = 0;
   fadeCallback = cb;
 }
-
-// ── GAME FLOW ─────────────────────────────────────────────────
 
 function startGame(fromNgPlus) {
   ngPlus = !!fromNgPlus;
@@ -65,7 +68,7 @@ function startGame(fromNgPlus) {
   setGameVideo(true);
   fadeMusic(0.15);
   startGamePhysics(canvas.width, ngPlus);
-  screen = 'game';
+  changeScreen('game');
   victorySaved = false;
   trailHistory = [];
   window._raindrops = null;
@@ -78,7 +81,7 @@ function returnToMenu() {
   setGameVideo(false);
   fadeMusic(0.38);
   ngPlus = false;
-  screen = 'menu';
+  changeScreen('menu');
   victorySaved = false;
   window._victoryParticles = null;
 }
@@ -89,10 +92,8 @@ function stopGame() {
 }
 
 function goToMapOverview() {
-  screen = 'mapoverview';
+  changeScreen('mapoverview');
 }
-
-// ── DEATH HANDLER ─────────────────────────────────────────────
 
 function triggerDeath() {
   triggerShake();
@@ -105,80 +106,67 @@ function triggerDeath() {
   const showHall = deaths > 0 && deaths % 10 === 0;
   if (showHall) recordDeathLocation(player.position.x, player.position.y, heightM);
 
-  // freeze physics during replay
   if (engine) engine.timing.timeScale = 0;
 
   triggerReplay(() => {
-    // unfreeze physics
     if (engine) engine.timing.timeScale = 1;
-
     if (showHall) {
-      screen = 'hallofshame';
-      setTimeout(() => {
-        if (screen === 'hallofshame') screen = 'game';
-        const r = getRespawnPoint(spawnX, spawnY);
-        resetPlayerPos(canvas.width / 2, r.y);
-      }, 8000);
+      changeScreen('hallofshame');
+      pendingRespawnTime = Date.now() + 8000;
+      pendingRespawnHall = true;
     } else {
       showDeathQuote(quote);
-      setTimeout(() => {
-        const r = getRespawnPoint(spawnX, spawnY);
-        resetPlayerPos(canvas.width / 2, r.y);
-      }, 2800);
+      pendingRespawnTime = Date.now() + 2800;
+      pendingRespawnHall = false;
     }
   });
 }
-
-// ── GAME LOOP ─────────────────────────────────────────────────
 
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   ctx.clearRect(0, 0, W, H);
 
-  // rotate tagline every 3 seconds
   if (Date.now() - taglineTimer > 3000) {
     taglineIndex = (taglineIndex + 1) % TAGLINES.length;
     taglineTimer = Date.now();
   }
 
+  // Handle timed respawn safely inside the loop instead of setTimeout
+  if (pendingRespawnTime > 0 && Date.now() >= pendingRespawnTime) {
+    pendingRespawnTime = 0;
+    if (pendingRespawnHall && screen === 'hallofshame') changeScreen('game');
+    const r = getRespawnPoint(spawnX, spawnY);
+    resetPlayerPos(canvas.width / 2, r.y);
+  }
+
   if (screen === 'menu') {
     drawMenuScreen(W, H, taglineIndex, streak);
     drawMenuButtons(mouseX, mouseY);
-
   } else if (screen === 'name') {
     drawNameScreen(nameEntryValue);
-
   } else if (screen === 'mapoverview') {
     drawMapOverview(W, H);
-
   } else if (screen === 'hallofshame') {
     drawGameWorld(ngPlus);
     drawHallOfShame(W, H);
-
   } else if (screen === 'skins') {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, H);
     drawSkinsScreenUI(W, H);
-
   } else if (screen === 'howto') {
     drawHowToScreen(mouseX, mouseY);
-
   } else if (screen === 'leaderboard') {
     drawLeaderboardScreen(W, H);
-
   } else if (screen === 'game') {
     drawGameWorld(ngPlus);
-
   } else if (screen === 'pause') {
     drawGameWorld(ngPlus);
     drawPauseOverlay(mouseX, mouseY);
-
   } else if (screen === 'victory') {
     drawGameWorld(ngPlus);
     drawVictoryOverlay(mouseX, mouseY, VICTORY_BUTTONS);
   }
 
-  // fade to black overlay
   if (fadeAlpha < fadeTarget) {
     fadeAlpha = Math.min(fadeTarget, fadeAlpha + 1 / (600 / 16.67));
     ctx.fillStyle = 'rgba(0,0,0,' + fadeAlpha + ')';
@@ -193,8 +181,6 @@ function gameLoop() {
   }
 }
 
-// ── MOUSE ─────────────────────────────────────────────────────
-
 canvas.addEventListener('mousemove', e => {
   mouseX = e.clientX;
   mouseY = e.clientY;
@@ -204,8 +190,6 @@ canvas.addEventListener('click', e => {
   startAudioOnInteraction();
   handleClick(e.clientX, e.clientY);
 });
-
-// ── CLICK HANDLER ─────────────────────────────────────────────
 
 function handleClick(cx, cy) {
   if (screen === 'menu') {
@@ -219,20 +203,16 @@ function handleClick(cx, cy) {
         if (!playerName) {
           nameEntryValue = '';
           nameEntryCallback = () => { fadeToBlack(() => goToMapOverview()); };
-          screen = 'name';
+          changeScreen('name');
         } else {
           fadeToBlack(() => goToMapOverview());
         }
-
       } else if (btn.id === 'leaderboard') {
-        screen = 'leaderboard';
-
+        changeScreen('leaderboard');
       } else if (btn.id === 'skins') {
-        screen = 'skins';
-
+        changeScreen('skins');
       } else if (btn.id === 'howto') {
-        screen = 'howto';
-
+        changeScreen('howto');
       } else if (btn.id === 'quit') {
         if (window.confirm('Quit Echoes of Fall?')) window.close();
       }
@@ -240,16 +220,16 @@ function handleClick(cx, cy) {
 
   } else if (screen === 'leaderboard') {
     const back = { x: W / 2 - 70, y: H - 47, w: 140, h: 26 };
-    if (pointInRect(cx, cy, back)) screen = 'menu';
+    if (pointInRect(cx, cy, back)) changeScreen('menu');
 
   } else if (screen === 'skins') {
     const back = { x: W / 2 - 65, y: H - 31, w: 130, h: 26 };
-    if (pointInRect(cx, cy, back)) screen = 'menu';
+    if (pointInRect(cx, cy, back)) changeScreen('menu');
 
   } else if (screen === 'howto') {
     const bh = 34;
     const back = { x: W / 2 - 70, y: H - 28 - bh / 2, w: 140, h: bh };
-    if (pointInRect(cx, cy, back)) screen = 'menu';
+    if (pointInRect(cx, cy, back)) changeScreen('menu');
 
   } else if (screen === 'pause') {
     const rects = [
@@ -259,7 +239,7 @@ function handleClick(cx, cy) {
     rects.forEach(r => {
       if (!pointInRect(cx, cy, r)) return;
       if (r.id === 'resume') {
-        screen = 'game';
+        changeScreen('game');
         resumePhysics();
       } else {
         stopGame();
@@ -274,25 +254,19 @@ function handleClick(cx, cy) {
 
       if (b.id === 'again') {
         fadeToBlack(() => goToMapOverview());
-
       } else if (b.id === 'share') {
         const hM = player ? heightInMeters(player.position.y) : 0;
         copyShareText(playerName, hM, elapsed);
-
       } else if (b.id === 'ngplus') {
         prestige++;
         lsSet('eof_prestige', prestige);
         fadeToBlack(() => startGame(true));
-
       } else if (b.id === 'menu') {
         stopGame();
       }
     });
   }
 }
-
-// ── MENU BUTTON RECTS ─────────────────────────────────────────
-// must match drawMenuButtons in renderer.js exactly
 
 function getMenuButtonRectsFromLayout() {
   const btnW = Math.min(240, W * 0.33);
@@ -308,10 +282,7 @@ function getMenuButtonRectsFromLayout() {
   }));
 }
 
-// ── KEYBOARD ──────────────────────────────────────────────────
-
 window.addEventListener('keydown', e => {
-  // name entry screen
   if (screen === 'name') {
     e.preventDefault();
     if (e.key === 'Enter' && nameEntryValue.trim().length > 0) {
@@ -321,7 +292,7 @@ window.addEventListener('keydown', e => {
         nameEntryCallback();
         nameEntryCallback = null;
       } else {
-        screen = 'menu';
+        changeScreen('menu');
       }
     } else if (e.key === 'Backspace') {
       nameEntryValue = nameEntryValue.slice(0, -1);
@@ -331,7 +302,6 @@ window.addEventListener('keydown', e => {
     return;
   }
 
-  // premium skin code input on skins screen
   if (screen === 'skins' && (e.key === 'c' || e.key === 'C')) {
     if (typeof ensurePremiumCodeInput === 'function') {
       ensurePremiumCodeInput();
@@ -347,25 +317,22 @@ window.addEventListener('keydown', e => {
   keys[e.key] = true;
   keys[e.key.toLowerCase()] = true;
 
-  // jump input
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
     e.preventDefault();
     jumpPressedTime = Date.now();
     pendingJump = true;
   }
 
-  // mute
   if (e.key === 'm' || e.key === 'M') toggleMute();
 
-  // pause / unpause
   if (screen === 'game') {
     if (e.key === 'p' || e.key === 'P') {
-      screen = 'pause';
+      changeScreen('pause');
       pausePhysics();
     }
   } else if (screen === 'pause') {
     if (e.key === 'p' || e.key === 'P') {
-      screen = 'game';
+      changeScreen('game');
       resumePhysics();
     }
   }
@@ -375,7 +342,6 @@ window.addEventListener('keyup', e => {
   keys[e.key] = false;
   keys[e.key.toLowerCase()] = false;
 
-  // variable jump — release early = lower arc
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
     if (player && player.velocity.y < -5) {
       Matter.Body.setVelocity(player, {
@@ -387,6 +353,9 @@ window.addEventListener('keyup', e => {
   }
 });
 
-// ── START ─────────────────────────────────────────────────────
-
-gameLoop();
+// START (Waits for fonts to load before kicking off loop)
+if (document.fonts) {
+  document.fonts.ready.then(() => { gameLoop(); });
+} else {
+  gameLoop();
+}

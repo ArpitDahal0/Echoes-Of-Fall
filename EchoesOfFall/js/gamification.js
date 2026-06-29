@@ -77,11 +77,11 @@ function addXP(amount, label, px, py) {
 function collectCoin(coin, px, py) {
   if (coin.collected) return;
   coin.collected = true;
+  
+  // ONLY add to session coins. Do not save to localStorage yet!
   sessionCoins++;
-  totalCoins++;
   coinCombo++;
   comboMultiplier = coinCombo >= 5 ? 3 : coinCombo >= 3 ? 2 : 1;
-  lsSet('eof_coins', totalCoins);
 
   if (comboMultiplier > 1) {
     multiplierText = 'x' + comboMultiplier + ' COMBO!';
@@ -94,7 +94,7 @@ function collectCoin(coin, px, py) {
   spawnFloatingText(comboMultiplier > 1 ? '🔥x' + comboMultiplier : '🪙', px, py - 20, '#FFD700');
 }
 
-// ── SKIN SHOP (coins only, no real money) ───────────────────
+// ── SKIN SHOP ────────────────────────────────────────────────
 
 function isSkinUnlocked(skin) {
   if (skin.unlock === 'free') return true;
@@ -131,6 +131,7 @@ function buySkinWithCoins(skin) {
 
 function recordDeathLocation(px, py, heightM) {
   deathLocations.push({ x: px, y: py, height: heightM, num: deaths });
+  if (deathLocations.length > 50) deathLocations.shift();
 }
 
 function getWorstFalls() {
@@ -141,6 +142,10 @@ function onDeath(playerName) {
   deaths++;
   const totalDeaths = lsGet('eof_total_deaths', 0) + 1;
   lsSet('eof_total_deaths', totalDeaths);
+  
+  // PUNISHMENT: Lose all unbanked coins collected during this life!
+  sessionCoins = 0; 
+  
   coinCombo = 0;
   comboMultiplier = 1;
   multiplierFlash = 0;
