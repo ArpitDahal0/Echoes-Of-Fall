@@ -2,13 +2,17 @@
 // all the game config stuff lives here
 // - Sushant
 
-const CONFIG = {
+const MathHelper = {
+  METERS_PER_PIXEL: 1 / 30
+};
+
+const CONFIG = Object.freeze({
   gravity: 0.9,
   jumpVel: -18,
-  maxSpeed: 3.2,
-  groundForce: 0.004,
-  airForce: 0.0015,
-  damping: 0.70,
+  maxSpeed: 2.2,       // Slower, more controlled speed
+  groundForce: 0.0025, // Slower acceleration
+  airForce: 0.0012,
+  damping: 0.82,       // Tighter brakes when letting go of keys
   frictionAir: 0.03,
   coyoteTime: 130,
   jumpBuffer: 115,
@@ -17,7 +21,7 @@ const CONFIG = {
   heightBase: 2900,
   fallThreshold: 200,
   checkpoints: [2060, 1360, 500],
-};
+});
 
 const WEATHERS = [
   { id: 'clear', label: '☀️ Clear',  frictionMod: 1.0,  windX: 0,     visibility: 1.0  },
